@@ -9,7 +9,7 @@
             <div class="row">
                 <div class="col-6">
                     <div class="input-group">
-                        <label class="input-group-text p-1" for="inputGroupSelect01">Type</label>
+                        <label class="input-group-text p-1" for="inputGroupSelect01">Date</label>
                         <input value="{{ request()->date }}" type="text" class="form-control" id="date" placeholder="All" autocomplete="off">
                     </div>
                 </div>

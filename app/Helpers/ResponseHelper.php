@@ -1,21 +1,23 @@
 <?php
 
-function success ($message, $data) {
+function success ($message, $data, $code = 200) {
     return response()->json(
         [
-            'result' => 1,
+            'result' => true,
             'message' => $message,
             'data' => $data
-        ]
+        ], 
+        $code
     );
 }
 
-function fail ($message, $data) {
+function fail ($message, $data, $code = 422) {
     return response()->json(
         [
-            'result' => 0,
+            'result' => false,
             'message' => $message,
             'data' => $data
-        ]
+        ],
+        $code
     );
 }

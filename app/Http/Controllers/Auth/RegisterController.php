@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Helpers\FirebaseNoti;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
@@ -104,21 +105,31 @@ class RegisterController extends Controller
         return redirect($this->redirectTo);
     }
 
+
+
+
     public function register (Request $request) 
     {
+        if(!$request->device_token){
+            return redirect()->back()->withErrors(['device_token' => 'Something wrong. Please check your internet connection.'])->withInput();
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'phone' => ['required', 'string', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
-        $otp_number = $this->generateOTP($request->phone);
+        $otp_number = $this->generateOTP($request->device_token);
         if($otp_number) {
-            if($this->sendSMS($request->phone, $otp_number, "$otp_number is your OTP number.")) {
-                return redirect('otp')->with('registration_data', $data);
-            }else{
-                return redirect()->back()->withInput();
-            }
+
+            FirebaseNoti::sendNotification($request->device_token, 'Magic Pay', 'Your OTP number is ' . $otp_number);
+            return redirect('otp')->with('registration_data', $data);
+            // if($this->sendSMS($request->phone, $otp_number, "$otp_number is your OTP number.")) {
+            //     return redirect('otp')->with('registration_data', $data);
+            // }else{
+            //     return redirect()->back()->withInput();
+            // }
         }else{
             return redirect()->back()->withInput();
         }
@@ -135,6 +146,9 @@ class RegisterController extends Controller
 
     public function post_register (Request $request)
     {
+        if(!$request->device_token){
+            return redirect()->back()->withErrors(['device_token' => 'Something wrong. Please check your internet connection.'])->withInput();
+        }
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'unique:users'],
@@ -143,11 +157,14 @@ class RegisterController extends Controller
             'otp' => ['required', 'min:6', 'max:6']
         ]);
         if($validator->fails()) {
-            return redirect()->back()->withErrors(['otp' => $validator->errors()->first()])->withInput();
+            if($request->name) {
+                return redirect()->back()->withErrors(['otp' => $validator->errors()->first()])->withInput();
+            }
+            return redirect('/register')->withErrors(['otp' => $validator->errors()->first()])->withInput();
         }
-        $otp = Otp::where('phone', $request->phone)->orderBy('id', 'DESC')->first();
+        $otp = Otp::where('device_token', $request->device_token)->orderBy('id', 'DESC')->first();
         if($otp && $otp->otp_number == $request->otp){
-            Otp::where('phone', $request->phone)->delete();
+            Otp::where('device_token', $request->device_token)->delete();
             // $user = User::create([
             //     'name' => $request->name,
             //     'email' => $request->email,
@@ -164,6 +181,7 @@ class RegisterController extends Controller
             $user->password = $request->password;
             $user->ip = $request->ip();
             $user->user_agent = $request->server('HTTP_USER_AGENT');
+            $user->device_token = $request->device_token;
             $user->login_at = date('Y-m-d H:i:s');
             $user->save();
             Wallet::firstOrCreate(
@@ -172,7 +190,7 @@ class RegisterController extends Controller
                 ],
                 [
                     'account_number' => UUIDGenerate::account_number(),
-                    'amount' => 0
+                    'amount' => 10000
                 ]
             );
             auth()->login($user);
@@ -185,11 +203,12 @@ class RegisterController extends Controller
 
 
 
-    public function generateOTP($phone)
+    public function generateOTP($token)
     {
         $generateOtp = mt_rand(100000,999999);
         $otpDb = new Otp();
-        $otpDb->phone = $phone;
+        // $otpDb->phone = $phone;
+        $otpDb->device_token = $token;
         $otpDb->otp_number = $generateOtp;
         if ($otpDb->save())
         {

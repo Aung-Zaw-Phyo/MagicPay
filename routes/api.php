@@ -22,6 +22,7 @@ Route::post('login', [AuthController::class, 'login']);
 Route::middleware('auth:api')->group(function(){
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('profile', [PageController::class, 'profile']);
+    Route::post('update-password', [AuthController::class, 'updatePassword']);
     
     Route::get('transaction', [PageController::class, 'transaction']);
     Route::get('transaction/{trx_id}', [PageController::class, 'transactionDetail']);
@@ -31,10 +32,10 @@ Route::middleware('auth:api')->group(function(){
 
     Route::get('to-account-verify', [PageController::class, 'toAccountVerify']);
 
-    Route::get('transfer/confirm', [PageController::class, 'transferConfirm']);
+    Route::post('transfer/confirm', [PageController::class, 'transferConfirm']);
     Route::post('transfer/complete', [PageController::class, 'transferComplete']);
 
     Route::get('scan-and-pay-form', [PageController::class, 'scanAndPayForm']);
-    Route::get('scan-and-pay-confirm', [PageController::class, 'scanAndPayConfirm']);
+    Route::post('scan-and-pay-confirm', [PageController::class, 'scanAndPayConfirm']);
     Route::post('scan-and-pay-complete', [PageController::class, 'scanAndPayComplete']);
 });

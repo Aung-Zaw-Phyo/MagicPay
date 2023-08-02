@@ -69,7 +69,6 @@ class PageController extends Controller
     }
 
     public function transferConfirm (TransferFormValidatioin $request) {
-        
         $from_account = Auth::guard('web')->user();
 
         $to_phone = $request->to_phone;

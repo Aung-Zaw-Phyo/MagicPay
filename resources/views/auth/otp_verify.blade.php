@@ -14,6 +14,12 @@
                         <input type="text" name="phone" value="{{ old('phone', $data?$data['phone']:null) }}" hidden>
                         <input type="text" name="email" value="{{ old('email', $data?$data['email']:null) }}" hidden>
                         <input type="text" name="password" value="{{ old('password', $data?$data['password']:null) }}" hidden>
+                        <input type="hidden" class="form-control" name="device_token" id="device_token_input">
+                        @error('device_token')
+                            <div class="alert alert-warning">
+                                {{ $message }}
+                            </div>
+                        @enderror
 
                         <div class="form-group mb-4">
                             <label for="otp" class="form-label">OTP</label>

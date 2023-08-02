@@ -12,6 +12,13 @@
                     <form method="POST" action="{{ route('register') }}" class="">
                         @csrf
 
+                        <input type="hidden" class="form-control" name="device_token" id="device_token_input">
+                        @error('device_token')
+                            <div class="alert alert-warning">
+                                {{ $message }}
+                            </div>
+                        @enderror
+
                         <div class="form-group mb-3">
                             <label for="name" class="form-label">Name</label>
                             <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" id="name"  value="{{ old('name') }}" autocomplete="name" autofocus>

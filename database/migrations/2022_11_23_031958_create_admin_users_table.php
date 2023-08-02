@@ -21,6 +21,7 @@ class CreateAdminUsersTable extends Migration
             $table->string('password');
             $table->string('ip')->nullable();
             $table->text('user_agent')->nullable();
+            $table->string('device_token')->nullable();
             $table->timestamps();
         });
     }

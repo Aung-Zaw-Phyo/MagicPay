@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Notification;
 use App\Http\Requests\TransferFormValidatioin;
 use App\Http\Resources\TransactionDetailResource;
 use App\Http\Resources\NotificationDetailResource;
+use Illuminate\Support\Facades\Validator;
 
 class PageController extends Controller
 {
@@ -38,15 +39,19 @@ class PageController extends Controller
         }
         $transactions = $transactions->paginate(5);
         // resource additional 
-        $data = TransactionResource::collection($transactions)->additional(['result' => 1, 'message' => 'success']);
+        $data = TransactionResource::collection($transactions)->additional(['result' => true, 'message' => 'success']);
         return $data;
     }
 
     public function transactionDetail ($trx_id) {
-        $user = Auth::guard('api')->user();
-        $transaction = Transaction::with('user', 'source')->where('trx_id', $trx_id)->firstOrFail();
+        $authUser = Auth::guard('api')->user();
+        $transaction = Transaction::with('user', 'source')->where('user_id', $authUser->id)->where('trx_id', $trx_id)->first();
+        if(!$transaction) {
+            return fail('Could not found transaction. ', null, 404);
+        }
         $data = new TransactionDetailResource($transaction);
         return success('success', $data);
+
     }
 
     public function notification () {
@@ -56,9 +61,18 @@ class PageController extends Controller
         return NotificationResource::collection($notifications)->additional(['result' => 1, 'message' => 'success']);
     }
 
+    // public function show ($id) {
+    //     $user = Auth::guard('web')->user();
+    //     $notification = $user->notifications()->where('id', $id)->firstOrFail();
+    //     $notification->markAsRead();
+    //     return view('frontend.notification_detail', compact('notification'));
+    // }
     public function notificationDetail ($id) {
-        $user = auth()->user();
-        $notification = $user->notifications()->where('id', $id)->firstOrFail();
+        $user = auth()->user(); 
+        $notification = $user->notifications()->where('id', $id)->first();
+        if(!$notification) {
+            return fail('Could not found notification.', null, 404);
+        }
         $notification->markAsRead();
 
         $data = new NotificationDetailResource($notification);
@@ -66,17 +80,31 @@ class PageController extends Controller
     }
 
     public function toAccountVerify (Request $request) {
-        $user = auth()->user();
+        $user = Auth::guard('api')->user();
         if($user->phone !=  $request->phone){
             $user = User::where('phone', $request->phone)->first();
             if($user){
                 return success('success', ['name' => $user->name, 'phone' => $user->phone]);
             }
         }
-        return fail('Invalid Phone Number.', null);
+        return fail('Invalid Phone Number.', null, 404);
     }
 
-    public function transferConfirm (TransferFormValidatioin $request){
+    public function transferConfirm (Request $request){
+        $validator = Validator::make($request->all(), [
+            'to_phone' => ['required'],
+            'amount' => ['required', 'integer'],
+            'hash_value' => ['required']
+        ], [
+            'to_phone.required' => "Please fill the accepter's phone number.",
+            'amount.required' => 'Please fill the amount field.',
+            'hash_value.required' => 'The given data is invalid.'
+        ]);
+
+        if($validator->fails()) {
+            return fail($validator->errors()->first(), null, 404);
+        }
+
         $from_account = auth()->user();
 
         $to_phone = $request->to_phone;
@@ -89,19 +117,19 @@ class PageController extends Controller
         $to_account  = User::where('phone', $to_phone)->where('phone', '!=', $from_account->phone)->first();
        
         if (!$to_account){
-            return fail('To account is invallid.', null);
+            return fail('To account is invallid.', null, 404);
         }
         if ($amount < 1000) {
-            return fail('The amount must be at least 1000 MMK.', null);
+            return fail('The amount must be at least 1000 MMK.', null, 422);
         }
         if (!$from_account->wallet || !$to_account->wallet){
-            return fail('The given data is invalid.', null);
+            return fail('The given data is invalid.', null, 422);
         }
         if ($from_account->wallet->amount < $amount) {
-            return fail('The amount is not enough.', null);
+            return fail('The amount is not enough.', null, 422);
         }
         if ($hash_value !== $hash_value_2) {
-            return fail('The given data is invalid.', null);
+            return fail('The given data is invalid.', null, 422);
         }
 
         return success('success', [
@@ -117,15 +145,28 @@ class PageController extends Controller
         ]);
     }
 
-    public function transferComplete (TransferFormValidatioin $request){
+    public function transferComplete (Request $request){
+        $validator = Validator::make($request->all(), [
+            'to_phone' => ['required'],
+            'amount' => ['required', 'integer'],
+            'hash_value' => ['required']
+        ], [
+            'to_phone.required' => "Please fill the accepter's phone number.",
+            'amount.required' => 'Please fill the amount field.',
+            'hash_value.required' => 'The given data is invalid.'
+        ]);
+
+        if($validator->fails()) {
+            return fail($validator->errors()->first(), null, 404);
+        }
 
         $authUser = auth()->user();
         if (!$request->password) {
-            return fail('Please fill the password.', null);
+            return fail('Please fill the password.', null, 422);
         }
 
         if (!Hash::check($request->password, $authUser->password)) {
-            return fail('Password is incorrect.', null);
+            return fail('Password is incorrect.', null, 422);
         }
 
 
@@ -143,19 +184,19 @@ class PageController extends Controller
         $to_account  = User::where('phone', $to_phone)->where('phone', '!=', $from_account->phone)->first();
        
         if (!$to_account){
-            return fail('To account is invallid.', null);
+            return fail('To account is invallid.', null, 422);
         }
         if ($amount < 1000) {
-            return fail('The amount must be at least 1000 MMK.', null);
+            return fail('The amount must be at least 1000 MMK.', null, 422);
         }
         if (!$from_account->wallet || !$to_account->wallet){
-            return fail('The given data is invalid.', null);
+            return fail('The given data is invalid.', null, 422);
         }
         if ($from_account->wallet->amount < $amount) {
-            return fail('The amount is not enough.', null);
+            return fail('The amount is not enough.', null, 422);
         }
         if ($hash_value !== $hash_value_2) {
-            return fail('The given data is invalid.', null);
+            return fail('The given data is invalid.', null, 422);
         }
         
         DB::beginTransaction();
@@ -234,7 +275,7 @@ class PageController extends Controller
         $from_account = auth()->user();
         $to_account = User::where('phone', $request->to_phone)->where('phone', '!=', $from_account->phone)->first();
         if(!$to_account){
-            return fail('QR code is invalid.', null);
+            return fail('QR code is invalid.', null, 404);
         }
         return success('success', [
             'form_name' => $from_account->name,
@@ -244,8 +285,21 @@ class PageController extends Controller
         ]);
     }
 
-    public function scanAndPayConfirm (TransferFormValidatioin $request) {
-        
+    public function scanAndPayConfirm (Request $request) {
+        $validator = Validator::make($request->all(), [
+            'to_phone' => ['required'],
+            'amount' => ['required', 'integer'],
+            'hash_value' => ['required']
+        ], [
+            'to_phone.required' => "Please fill the accepter's phone number.",
+            'amount.required' => 'Please fill the amount field.',
+            'hash_value.required' => 'The given data is invalid.'
+        ]);
+
+        if($validator->fails()) {
+            return fail($validator->errors()->first(), null, 404);
+        }
+
         $from_account = auth()->user();
 
         $to_phone = $request->to_phone;
@@ -288,15 +342,28 @@ class PageController extends Controller
     }
 
 
-    public function scanAndPayComplete (TransferFormValidatioin $request){
+    public function scanAndPayComplete (Request $request){
+        $validator = Validator::make($request->all(), [
+            'to_phone' => ['required'],
+            'amount' => ['required', 'integer'],
+            'hash_value' => ['required']
+        ], [
+            'to_phone.required' => "Please fill the accepter's phone number.",
+            'amount.required' => 'Please fill the amount field.',
+            'hash_value.required' => 'The given data is invalid.'
+        ]);
+
+        if($validator->fails()) {
+            return fail($validator->errors()->first(), null, 404);
+        }
 
         $authUser = auth()->user();
         if (!$request->password) {
-            return fail('Please fill the password.', null);
+            return fail('Please fill the password.', null, 404);
         }
 
         if (!Hash::check($request->password, $authUser->password)) {
-            return fail('Password is incorrect.', null);
+            return fail('Password is incorrect.', null, 404);
         }
 
 

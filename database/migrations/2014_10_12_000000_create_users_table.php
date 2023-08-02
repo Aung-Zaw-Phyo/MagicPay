@@ -22,6 +22,7 @@ class CreateUsersTable extends Migration
             $table->rememberToken();
             $table->string('ip')->nullable();
             $table->text('user_agent')->nullable();
+            $table->string('device_token')->nullable();
             $table->timestamp('login_at')->nullable();
             $table->timestamps();
         });

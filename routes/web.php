@@ -69,10 +69,9 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::get('/test/sms', function() {
-    $sid = "ACa1f3d6b33f27c93878cfdb8167b52710";
-    $token = "18c3203202a81a3d7e10118db58db47d";
+    $sid = "";
+    $token = "";
     $twilio = new Client($sid, $token);
-
     $message = $twilio->messages
                     ->create("+959968548024", // to
                             [

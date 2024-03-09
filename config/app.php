@@ -177,6 +177,8 @@ return [
 
         Jenssegers\Agent\AgentServiceProvider::class,
 
+        Laravel\Passport\PassportServiceProvider::class,
+
     ],
 
     /*

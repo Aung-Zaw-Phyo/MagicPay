@@ -65,7 +65,7 @@ class LoginController extends Controller
             ],
             [
                 'account_number' => UUIDGenerate::account_number(),
-                'amount' => 0
+                'amount' => 30000
             ]
         );
 

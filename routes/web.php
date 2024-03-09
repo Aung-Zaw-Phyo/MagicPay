@@ -1,11 +1,15 @@
 <?php
 
 use App\Http\Controllers\Auth\AdminLoginController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Frontend\NotificationController;
 use App\Http\Controllers\Frontend\PageController;
+use App\Mail\AccountVerificationMail;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
+use Twilio\Rest\Client;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,6 +31,10 @@ Route::post('admin/logout', [AdminLoginController::class, 'logout'])->name('admi
 
 // User auth 
 Auth::routes();
+Route::post('login', [LoginController::class, 'login'])->name('login')->middleware('account_verified');
+Route::get('/account/{hashed_code}', [RegisterController::class, 'status'])->name('account.status');
+Route::get('/resend-email', [RegisterController::class, 'resend'])->name('resendEmail');
+Route::get('/account/verification/{key}', [RegisterController::class, 'verification'])->name('account.verification');
 Route::get('/otp', [RegisterController::class, 'otp'])->name('otp');
 Route::post('/post_register', [RegisterController::class, 'post_register'])->name('post_register');
 
@@ -60,3 +68,27 @@ Route::middleware(['auth'])->group(function () {
     Route::get('notification/{id}', [NotificationController::class, 'show']);
 });
 
+Route::get('/test/sms', function() {
+    $sid = "ACa1f3d6b33f27c93878cfdb8167b52710";
+    $token = "18c3203202a81a3d7e10118db58db47d";
+    $twilio = new Client($sid, $token);
+
+    $message = $twilio->messages
+                    ->create("+959968548024", // to
+                            [
+                                "body" => "This is the ship that made the Kessel Run in fourteen parsecs?",
+                                "from" => "+12404105539"
+                            ]
+                    );
+
+    dd($message->sid);
+});
+
+Route::get('/test', function() {
+    Mail::to('aungzawphyo1102@gmail.com')
+        ->send(new AccountVerificationMail(''));
+});
+
+Route::get('/qr', function() {
+    return view('qr');
+});

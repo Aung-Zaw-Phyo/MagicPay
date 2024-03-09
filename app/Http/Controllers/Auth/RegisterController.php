@@ -3,22 +3,32 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Helpers\FirebaseNoti;
-use App\Models\User;
-use App\Models\Wallet;
-use Illuminate\Http\Request;
 use App\Helpers\UUIDGenerate;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RegisterRequest;
+use App\Mail\AccountVerificationMail;
 use App\Models\Otp;
-use Illuminate\Support\Facades\Hash;
+use App\Models\User;
+use App\Models\Wallet;
 use App\Providers\RouteServiceProvider;
+use App\Services\UserService;
+use Base62\Base62;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Session\Session as SessionSession;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Foundation\Auth\RegistersUsers;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Validator as ValidationValidator;
+use ParagonIE\ConstantTime\Base64UrlSafe;
+use phpseclib3\Crypt\AES;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 
 class RegisterController extends Controller
@@ -90,7 +100,7 @@ class RegisterController extends Controller
         $user->ip = $request->ip();
         $user->user_agent = $request->server('HTTP_USER_AGENT');
         $user->login_at = date('Y-m-d H:i:s');
-        $user->update();
+        $user->update();    
 
         Wallet::firstOrCreate(
             [
@@ -98,7 +108,7 @@ class RegisterController extends Controller
             ],
             [
                 'account_number' => UUIDGenerate::account_number(),
-                'amount' => 0
+                'amount' => 30000
             ]
         );
         
@@ -108,32 +118,90 @@ class RegisterController extends Controller
 
 
 
-    public function register (Request $request) 
+    public function register (RegisterRequest $request) 
     {
-        if(!$request->device_token){
-            return redirect()->back()->withErrors(['device_token' => 'Something wrong. Please check your internet connection.'])->withInput();
-        }
-
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'phone' => ['required', 'string', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'password' => Hash::make($request->password),
+            'ip' => $request->ip(),
+            'user_agent' => $request->server('HTTP_USER_AGENT'),
+            'login_at' => date('Y-m-d H:i:s')
         ]);
-        $otp_number = $this->generateOTP($request->device_token);
-        if($otp_number) {
 
-            FirebaseNoti::sendNotification($request->device_token, 'Magic Pay', 'Your OTP number is ' . $otp_number);
-            return redirect('otp')->with('registration_data', $data);
-            // if($this->sendSMS($request->phone, $otp_number, "$otp_number is your OTP number.")) {
-            //     return redirect('otp')->with('registration_data', $data);
-            // }else{
-            //     return redirect()->back()->withInput();
-            // }
-        }else{
-            return redirect()->back()->withInput();
+        Wallet::firstOrCreate(
+            [
+                'user_id' => $user->id
+            ],
+            [
+                'account_number' => UUIDGenerate::account_number(),
+                'amount' => 30000
+            ]
+        );
+
+        $key = (new UserService)->generateVerificationKey($request->phone, $request->email);
+        Mail::to($request->email)->send(new AccountVerificationMail($key));
+        $hashed_code = Crypt::encryptString($request->phone);
+        return redirect()->route('account.status', $hashed_code);       
+    }
+
+
+
+    public function status($hashed_code) 
+    {
+        try {
+            $phone = Crypt::decryptString($hashed_code);
+            $user = User::where('phone', $phone)->first();
+            if(!$user) {
+                abort(404);
+            }
+            return view('auth.status', [
+                'email' => $user->email,
+                'phone' => $user->phone,
+            ]);
+        } catch (\Throwable $th) {
+            abort(404);
         }
     }
+
+    public function resend(Request $request)
+    {
+        $user = User::where('phone', $request->phone)->first();
+        if($user) {
+            $key = (new UserService)->generateVerificationKey($user->phone, $user->email);
+            Mail::to($user->email)->send(new AccountVerificationMail($key));
+
+            return response()->json([
+                'status' => 'success',
+                'message' =>  'We sent verification link to your email.'
+            ]); 
+        }
+
+        return response()->json([
+            'status' => 'fail',
+            'message' => 'Email sending failed!'
+        ]);
+    }
+
+    public function verification($key)
+    {
+        $status = false;
+        $phone = Cache::get('verification_key_'.$key);
+        $user =User::where('phone', $phone)->first();
+        if($user) {
+            $status = true;
+            $user->isVerify = true;
+            $user->save();
+            auth()->login($user);
+        }
+        return view('auth.verification', [
+            'status' => $status
+        ]);
+    }
+
+
+
 
     public function otp ()
     {

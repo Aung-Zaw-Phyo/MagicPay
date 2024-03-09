@@ -69,7 +69,7 @@
             initFirebaseMessagingRegistration()
 
             $('#register').on('submit', function (e) {
-                initFirebaseMessagingRegistration()
+                // initFirebaseMessagingRegistration()
             })
             
             messaging.onMessage(function(payload) {

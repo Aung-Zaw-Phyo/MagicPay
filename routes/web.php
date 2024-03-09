@@ -5,11 +5,8 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Frontend\NotificationController;
 use App\Http\Controllers\Frontend\PageController;
-use App\Mail\AccountVerificationMail;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
-use Twilio\Rest\Client;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,26 +63,6 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('notification', [NotificationController::class, 'index']);
     Route::get('notification/{id}', [NotificationController::class, 'show']);
-});
-
-Route::get('/test/sms', function() {
-    $sid = "";
-    $token = "";
-    $twilio = new Client($sid, $token);
-    $message = $twilio->messages
-                    ->create("+959968548024", // to
-                            [
-                                "body" => "This is the ship that made the Kessel Run in fourteen parsecs?",
-                                "from" => "+12404105539"
-                            ]
-                    );
-
-    dd($message->sid);
-});
-
-Route::get('/test', function() {
-    Mail::to('aungzawphyo1102@gmail.com')
-        ->send(new AccountVerificationMail(''));
 });
 
 Route::get('/qr', function() {

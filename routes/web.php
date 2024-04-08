@@ -27,7 +27,7 @@ Route::post('admin/login', [AdminLoginController::class, 'login'])->name('admin.
 Route::post('admin/logout', [AdminLoginController::class, 'logout'])->name('admin.logout');
 
 // User auth 
-Auth::routes();
+Auth::routes(['password.request' => false, 'reset' => false]);
 Route::post('login', [LoginController::class, 'login'])->name('login')->middleware('account_verified');
 Route::get('/account/{hashed_code}', [RegisterController::class, 'status'])->name('account.status');
 Route::get('/resend-email', [RegisterController::class, 'resend'])->name('resendEmail');

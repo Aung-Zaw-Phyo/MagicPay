@@ -1,5 +1,5 @@
 @extends('frontend.layouts.app_plain')
-@section('title', 'Login')
+@section('title', 'Magic Pay | Login')
 @section('content')
 
 <div class="container">
